@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#06110B" />
+  <title>SWAGA от Mellstroy</title>
+  <meta name="description" content="SWAGA от Mellstroy — открой бота, активируй промокод COIN." />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+
+  <!--
+    ✅ UTM / метрики:
+    1) UTM добавляются автоматически к webLink (ниже в CONFIG.utm).
+    2) Метрика/GA: вставь сюда свои сниппеты (Яндекс.Метрика, GA4, etc.)
+       Ниже оставлен пример функции window.track().
+  -->
+
+  <style>
+    :root{
+      --bg0:#06110B;
+      --bg1:#071A12;
+      --line:rgba(255,255,255,.12);
+      --text:#E9FFF3;
+      --muted:rgba(233,255,243,.72);
+
+      --a1:#22FF9A;
+      --a2:#28D9FF;
+      --a3:#B8FF5D;
+
+      --shadow: 0 24px 70px rgba(0,0,0,.55);
+      --r2:24px;
+      --max:1020px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(1100px 700px at 12% 10%, color-mix(in oklab, var(--a1) 28%, transparent), transparent 60%),
+        radial-gradient(900px 680px at 88% 18%, color-mix(in oklab, var(--a2) 20%, transparent), transparent 58%),
+        radial-gradient(900px 680px at 60% 98%, color-mix(in oklab, var(--a3) 16%, transparent), transparent 62%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .safe-top{ padding-top: env(safe-area-inset-top); }
+    .safe-bot{ padding-bottom: env(safe-area-inset-bottom); }
+    a{ color:inherit; text-decoration:none }
+    button{ font-family:inherit }
+    *{ -webkit-tap-highlight-color: transparent; }
+
+    .noise{
+      pointer-events:none;
+      position:fixed; inset:0;
+      opacity:.16;
+      mix-blend-mode: overlay;
+      background: url("assets/noise.svg");
+      background-size: 320px 320px;
+      z-index:0;
+    }
+
+    .wrap{
+      position:relative;
+      z-index:1;
+      max-width: var(--max);
+      margin:0 auto;
+      padding: 18px 16px 44px;
+    }
+
+    /* Preloader */
+    .preloader{
+      position:fixed; inset:0;
+      display:grid; place-items:center;
+      background:
+        radial-gradient(800px 520px at 30% 20%, rgba(34,255,154,.18), transparent 60%),
+        radial-gradient(760px 520px at 75% 30%, rgba(40,217,255,.16), transparent 60%),
+        linear-gradient(180deg, #040c08, #06110B);
+      z-index:999;
+      transition: opacity .35s ease, visibility .35s ease;
+    }
+    .preloader.hide{ opacity:0; visibility:hidden }
+    .loader{
+      width: 110px; height: 110px;
+      border-radius: 30px;
+      background: linear-gradient(135deg, rgba(34,255,154,.24), rgba(40,217,255,.16));
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: var(--shadow);
+      display:grid; place-items:center;
+      position:relative;
+      overflow:hidden;
+    }
+    .loader::before{
+      content:"";
+      position:absolute; inset:-60%;
+      background: conic-gradient(from 90deg, rgba(34,255,154,.0), rgba(34,255,154,.55), rgba(40,217,255,.55), rgba(34,255,154,.0));
+      animation: spin 1.2s linear infinite;
+    }
+    .loader::after{
+      content:"";
+      position:absolute; inset:2px;
+      border-radius: 28px;
+      background: rgba(3,8,6,.8);
+      border:1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .loader .mark{ position:relative; z-index:2; width:48px; height:48px; }
+    .loader .mark img{ width:48px; height:48px; }
+    @keyframes spin{ to{ transform: rotate(1turn);} }
+
+    /* Topbar */
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      padding: 10px 2px 16px;
+      flex-wrap:wrap;
+    }
+    .brand{ display:flex; align-items:center; gap:12px; min-width:240px; }
+    .brand .icon{
+      width:42px; height:42px;
+      border-radius:16px;
+      background: linear-gradient(135deg, rgba(34,255,154,.95), rgba(40,217,255,.65));
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      display:grid; place-items:center;
+      overflow:hidden;
+    }
+    .brand .icon img{ width:26px; height:26px; }
+    .brand .t1{ font-weight:900; letter-spacing:.2px; }
+    .brand .t2{ color:var(--muted); font-size:12.5px; margin-top:2px; }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 9px 12px;
+      border-radius:999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--line);
+      color: var(--muted);
+      font-size:12.5px;
+      white-space:nowrap;
+    }
+
+    /* Layout */
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:16px;
+      align-items:stretch;
+    }
+    @media (max-width: 920px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--r2);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(700px 300px at 30% 0%, rgba(34,255,154,.12), transparent 60%);
+      opacity:.7;
+      pointer-events:none;
+    }
+    .inner{ position:relative; padding: 20px; }
+
+    /* Motion reveal */
+    .reveal{
+      opacity:0;
+      transform: translateY(10px) scale(.995);
+      transition: opacity .55s ease, transform .55s ease;
+    }
+    .reveal.show{ opacity:1; transform: translateY(0) scale(1); }
+
+    /* Hero */
+    .badges{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+    h1{
+      margin:0 0 10px;
+      font-size: clamp(26px, 3.2vw, 44px);
+      line-height: 1.05;
+      letter-spacing: -0.7px;
+    }
+    .lead{
+      margin:0 0 16px;
+      color: var(--muted);
+      font-size: 15.5px;
+      line-height: 1.5;
+      max-width: 60ch;
+    }
+
+    .promo{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.12);
+      margin-top: 8px;
+    }
+    .promo .left{ display:flex; flex-direction:column; gap:2px; }
+    .promo .label{ color: var(--muted); font-size:12.5px; }
+    .promo .code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: 1.2px;
+    }
+
+    .cta{ display:grid; gap:10px; margin-top: 12px; }
+
+    .btn{
+      width:100%;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      padding: 14px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      cursor:pointer;
+      user-select:none;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, filter .2s ease;
+      text-align:left;
+    }
+    .btn:hover{ background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.18); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(34,255,154,.9), rgba(40,217,255,.45));
+      border-color: rgba(255,255,255,.16);
+    }
+    .btn.primary:hover{ filter: brightness(1.03); }
+
+    .btn .l{ display:flex; flex-direction:column; gap:2px; }
+    .btn .t{ font-weight: 900; font-size: 14.5px; }
+    .btn .s{ color: rgba(255,255,255,.80); font-size: 12.5px; }
+    .btn .ic{
+      width: 38px; height: 38px;
+      border-radius: 16px;
+      display:grid; place-items:center;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.12);
+      flex:0 0 auto;
+      font-weight:900;
+    }
+
+    .copy{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      cursor:pointer;
+      font-weight:900;
+      font-size: 13px;
+      white-space:nowrap;
+      transition: background .2s ease, border-color .2s ease;
+    }
+    .copy:hover{ background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.18); }
+
+    /* Side */
+    .side h2{ margin:0 0 8px; font-size: 18px; }
+    .side p{ margin:0 0 12px; color:var(--muted); font-size: 13.5px; line-height: 1.55; }
+    .step{
+      display:flex; gap:12px;
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.12);
+      margin-top:10px;
+    }
+    .num{
+      width: 36px; height: 36px;
+      border-radius: 16px;
+      display:grid; place-items:center;
+      font-weight: 900;
+      background: rgba(34,255,154,.14);
+      border:1px solid rgba(34,255,154,.28);
+      flex:0 0 auto;
+    }
+    .step b{ display:block; margin-bottom:2px; }
+    .step span{ color:var(--muted); font-size: 13px; line-height:1.45; }
+
+    /* Accordion */
+    .section{ margin-top: 16px; }
+    .section-head{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 2px 2px 8px;
+      gap:10px;
+    }
+    .section-head h3{ margin:0; font-size: 16px; }
+    .hint{ color: var(--muted); font-size: 12.5px; }
+    .acc{
+      border-radius: var(--r2);
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      overflow:hidden;
+    }
+    details{ border-top: 1px solid rgba(255,255,255,.10); }
+    details:first-child{ border-top:none; }
+    summary{
+      cursor:pointer;
+      list-style:none;
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      font-weight: 900;
+      font-size: 14px;
+      user-select:none;
+    }
+    summary::-webkit-details-marker{ display:none; }
+    .chev{
+      width: 30px; height: 30px;
+      border-radius: 14px;
+      display:grid; place-items:center;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.12);
+      transition: transform .18s ease;
+      flex:0 0 auto;
+    }
+    details[open] .chev{ transform: rotate(180deg); }
+    .ans{
+      padding: 0 16px 14px;
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height: 1.55;
+    }
+
+    .footer{
+      margin-top: 16px;
+      padding: 12px 2px 0;
+      color: rgba(255,255,255,.55);
+      font-size: 12px;
+      display:flex; flex-wrap:wrap; gap:10px;
+      justify-content:space-between;
+    }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(10px);
+      opacity: 0;
+      pointer-events:none;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(10, 18, 14, .92);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+      font-size: 13px;
+      z-index: 50;
+      transition: opacity .22s ease, transform .22s ease;
+    }
+    .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+    /* Modal */
+    .backdrop{
+      position: fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center; justify-content:center;
+      padding: 18px;
+      z-index: 80;
+    }
+    .backdrop.show{ display:flex; }
+    .modal{
+      width: min(640px, 100%);
+      border-radius: 22px;
+      border:1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .mhead{
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .mhead b{ font-size: 14.5px; }
+    .x{
+      width: 36px; height: 36px;
+      border-radius: 16px;
+      display:grid; place-items:center;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+      cursor:pointer;
+      font-weight:900;
+    }
+    .mbody{ padding: 14px 16px 16px; }
+    .actions{
+      margin-top: 12px;
+      display:flex; flex-wrap:wrap; gap:10px;
+    }
+    .smallbtn{
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      cursor:pointer;
+      font-weight: 900;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="preloader" id="preloader" aria-hidden="true">
+    <div class="loader" aria-label="Загрузка">
+      <div class="mark"><img src="assets/icon.svg" alt="" /></div>
+    </div>
+  </div>
+
+  <div class="noise" aria-hidden="true"></div>
+
+  <div class="wrap safe-top safe-bot">
+    <header class="topbar reveal">
+      <div class="brand">
+        <div class="icon" aria-hidden="true">
+          <img src="assets/icon.svg" alt="" />
+        </div>
+        <div>
+          <div class="t1">SWAGA</div>
+          <div class="t2">от Mellstroy</div>
+        </div>
+      </div>
+
+      <div class="chip">⚡ Быстрый вход • 📱 Под iPhone • ✅ Промокод COIN</div>
+    </header>
+
+    <main class="grid">
+      <!-- Left -->
+      <section class="card reveal">
+        <div class="inner">
+          <div class="badges">
+            <div class="chip">🔒 Официальная ссылка</div>
+            <div class="chip">⧉ Копирование в 1 тап</div>
+          </div>
+
+          <h1>Открой бота и активируй<br/>промокод <span style="color:var(--a1)">COIN</span></h1>
+          <p class="lead">
+            Нажми “Открыть в приложении” — если Telegram установлен.
+            Если не открылось — через <b>1.2 сек</b> появится окно с инструкцией.
+          </p>
+
+          <div class="promo" role="group" aria-label="Промокод">
+            <div class="left">
+              <div class="label">Промокод</div>
+              <div class="code" id="promoCode">COIN</div>
+            </div>
+            <button class="copy" id="copyBtn" type="button">⧉ Скопировать</button>
+          </div>
+
+          <div class="cta">
+            <a class="btn primary" id="openApp" href="#" rel="nofollow">
+              <span class="l">
+                <span class="t">Открыть в приложении</span>
+                <span class="s">Telegram → deep link</span>
+              </span>
+              <span class="ic">›</span>
+            </a>
+
+            <a class="btn" id="openWeb" href="#" target="_blank" rel="noopener nofollow">
+              <span class="l">
+                <span class="t">Открыть в браузере</span>
+                <span class="s">С UTM-метками</span>
+              </span>
+              <span class="ic">›</span>
+            </a>
+
+            <button class="btn" id="copyLink" type="button">
+              <span class="l">
+                <span class="t">Скопировать ссылку</span>
+                <span class="s" id="copyLinkHint">Скопирует web-ссылку с UTM</span>
+              </span>
+              <span class="ic">⧉</span>
+            </button>
+
+            <button class="btn" id="openManual" type="button">
+              <span class="l">
+                <span class="t">Открыть вручную (100%)</span>
+                <span class="s">Инструкция внутри</span>
+              </span>
+              <span class="ic">?</span>
+            </button>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h3>FAQ</h3>
+              <span class="hint">коротко</span>
+            </div>
+
+            <div class="acc">
+              <details open>
+                <summary>
+                  Как это работает?
+                  <span class="chev">⌄</span>
+                </summary>
+                <div class="ans">
+                  1) Скопируй <b>COIN</b><br>
+                  2) Открой бота<br>
+                  3) Вставь промокод и следуй подсказкам.
+                </div>
+              </details>
+
+              <details>
+                <summary>
+                  Почему открылось не в приложении?
+                  <span class="chev">⌄</span>
+                </summary>
+                <div class="ans">
+                  Иногда браузер блокирует переход в приложение. Мы покажем модалку через 1.2 сек,
+                  чтобы открыть вручную.
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right -->
+      <aside class="card reveal">
+        <div class="inner side">
+          <h2>Инструкция (3 шага)</h2>
+          <p>Если что-то не откроется — используйте “Открыть вручную”.</p>
+
+          <div class="step">
+            <div class="num">1</div>
+            <div>
+              <b>Скопируй COIN</b>
+              <span>Код будет в буфере обмена.</span>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num">2</div>
+            <div>
+              <b>Открой @swagsplay_bot</b>
+              <span>Кнопкой или через поиск в Telegram.</span>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num">3</div>
+            <div>
+              <b>Вставь промокод</b>
+              <span>Активируй COIN внутри бота.</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            <span>© <span id="year"></span> SWAGA</span>
+            <span>UTM + метрики + авто-модалка</span>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">Скопировано</div>
+  </div>
+
+  <!-- Modal -->
+  <div class="backdrop" id="backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Открыть вручную">
+      <div class="mhead">
+        <b>Не открылось в приложении?</b>
+        <button class="x" id="closeModal" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div class="mbody">
+        <div class="step" style="margin:0">
+          <div class="num">1</div>
+          <div>
+            <b>Открой Telegram</b>
+            <span>Запусти приложение Telegram (не через браузер).</span>
+          </div>
+        </div>
+
+        <div class="step" style="margin:10px 0 0">
+          <div class="num">2</div>
+          <div>
+            <b>Найди бота</b>
+            <span>В поиске введи <span style="font-weight:900" id="manualHandle">@swagsplay_bot</span>.</span>
+          </div>
+        </div>
+
+        <div class="step" style="margin:10px 0 0">
+          <div class="num">3</div>
+          <div>
+            <b>Вставь промокод</b>
+            <span>Промокод: <span style="font-weight:900" id="manualCode">COIN</span></span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="smallbtn" id="copyHandle" type="button">⧉ Скопировать @бот</button>
+          <button class="smallbtn" id="copyCode2" type="button">⧉ Скопировать COIN</button>
+          <button class="smallbtn" id="closeModal2" type="button">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== Конфиг ======
+    const CONFIG = {
+      promoCode: "COIN",
+      // Ваша ссылка
+      webLinkBase: "https://t.me/swagsplay_bot?start=ppUrlId=5659",
+      deepLink: "tg://resolve?domain=swagsplay_bot&start=ppUrlId=5659",
+      manualHandle: "@swagsplay_bot",
+
+      // UTM
+      utm: {
+        utm_source: "swaga",
+        utm_medium: "landing",
+        utm_campaign: "mellstroy",
+        utm_content: "button",
+        utm_term: "coin"
+      },
+
+      // Авто-модалка после попытки открыть приложение (мс)
+      appFallbackDelay: 1200
+    };
+
+    // ====== Метрики (подключи сюда Я.Метрику/GA4 и вызывай track()) ======
+    window.track = function(event, data){
+      // Пример: console.log
+      console.log("[track]", event, data || {});
+
+      // Пример под Yandex Metrika:
+      // if (typeof ym === "function") ym(YOUR_COUNTER_ID, "reachGoal", event, data);
+
+      // Пример под GA4:
+      // if (typeof gtag === "function") gtag("event", event, data);
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const toast = $("toast");
+    let toastTimer = null;
+
+    function showToast(text){
+      toast.textContent = text;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1500);
+    }
+
+    async function copyText(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        showToast("Скопировано");
+      }catch(e){
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        showToast("Скопировано");
+      }
+    }
+
+    function withUTM(url){
+      const u = new URL(url);
+      for (const [k,v] of Object.entries(CONFIG.utm)){
+        u.searchParams.set(k, v);
+      }
+      return u.toString();
+    }
+
+    // Modal
+    const backdrop = $("backdrop");
+    function openModal(reason){
+      backdrop.classList.add("show");
+      backdrop.setAttribute("aria-hidden","false");
+      document.body.style.overflow = "hidden";
+      track("open_manual_modal", { reason: reason || "manual" });
+    }
+    function closeModal(){
+      backdrop.classList.remove("show");
+      backdrop.setAttribute("aria-hidden","true");
+      document.body.style.overflow = "";
+    }
+
+    // Init
+    $("year").textContent = new Date().getFullYear();
+    $("promoCode").textContent = CONFIG.promoCode;
+    $("manualCode").textContent = CONFIG.promoCode;
+    $("manualHandle").textContent = CONFIG.manualHandle;
+
+    const webLinkUTM = withUTM(CONFIG.webLinkBase);
+    $("openWeb").href = webLinkUTM;
+    $("copyLinkHint").textContent = "Скопирует: " + webLinkUTM.replace(/^https?:\/\//,"");
+
+    // Preloader
+    const pre = $("preloader");
+    window.addEventListener("load", () => setTimeout(() => pre.classList.add("hide"), 350));
+
+    // Reveal animations
+    const els = document.querySelectorAll(".reveal");
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries){
+        if(e.isIntersecting){
+          e.target.classList.add("show");
+          io.unobserve(e.target);
+        }
+      }
+    }, { threshold: 0.12 });
+    els.forEach(el => io.observe(el));
+
+    // Copy promo
+    $("copyBtn").addEventListener("click", () => {
+      copyText(CONFIG.promoCode);
+      track("copy_promo", { code: CONFIG.promoCode });
+    });
+
+    // Copy link
+    $("copyLink").addEventListener("click", () => {
+      copyText(webLinkUTM);
+      track("copy_link", { url: webLinkUTM });
+    });
+
+    // Open web
+    $("openWeb").addEventListener("click", () => {
+      track("open_web", { url: webLinkUTM });
+    });
+
+    // Auto-redirect/fallback for "open app"
+    let fallbackTimer = null;
+    $("openApp").href = CONFIG.deepLink;
+
+    $("openApp").addEventListener("click", (e) => {
+      // Попытка открыть приложение
+      track("open_app_try", { deepLink: CONFIG.deepLink });
+
+      const start = Date.now();
+      const onVis = () => {
+        // Если вкладка ушла в background (приложение открылось) — отменяем модалку
+        if (document.hidden){
+          clearTimeout(fallbackTimer);
+        }
+      };
+      document.addEventListener("visibilitychange", onVis, { once:true });
+
+      // Если за 1.2с не скрылись — считаем, что не открылось, показываем модалку
+      clearTimeout(fallbackTimer);
+      fallbackTimer = setTimeout(() => {
+        // дополнительная проверка: если прошло мало времени, и страница видима — покажем
+        if (!document.hidden && (Date.now() - start) >= CONFIG.appFallbackDelay - 50){
+          openModal("app_fallback");
+        }
+      }, CONFIG.appFallbackDelay);
+
+      // Важно: не preventDefault — пусть браузер попробует перейти по deepLink
+    });
+
+    // Manual open
+    $("openManual").addEventListener("click", () => openModal("manual_button"));
+
+    // Modal controls
+    $("closeModal").addEventListener("click", closeModal);
+    $("closeModal2").addEventListener("click", closeModal);
+    backdrop.addEventListener("click", (e)=> { if(e.target === backdrop) closeModal(); });
+    window.addEventListener("keydown", (e)=> { if(e.key === "Escape" && backdrop.classList.contains("show")) closeModal(); });
+
+    $("copyHandle").addEventListener("click", () => {
+      copyText(CONFIG.manualHandle);
+      track("copy_handle", { handle: CONFIG.manualHandle });
+    });
+
+    $("copyCode2").addEventListener("click", () => {
+      copyText(CONFIG.promoCode);
+      track("copy_promo_modal", { code: CONFIG.promoCode });
+    });
+
+  </script>
+</body>
+</html>
